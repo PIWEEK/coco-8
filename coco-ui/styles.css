@@ -4,6 +4,11 @@ body {
   font-family: monospace;
 }
 
+select, button {
+  font-family: monospace;
+  padding: 0.25rem 1rem;
+}
+
 .coco-video {
   image-rendering: pixelated;
   image-rendering: crisp-edges;

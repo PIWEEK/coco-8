@@ -50,7 +50,7 @@ impl<'a> Cpu<'a> {
 
     /// Runs the code starting the PC in the given address until
     /// it finds a BRK opcode
-    pub fn run(&mut self, addr: u16) -> u16 {
+    pub fn run<M: Machine>(&mut self, addr: u16, _: &mut M) -> u16 {
         self.pc = addr;
         loop {
             let op = self.read_byte();
@@ -65,6 +65,11 @@ impl<'a> Cpu<'a> {
         self.pc
     }
 
+    /// Returns the current value for the program counter (PC)
+    pub fn pc(&self) -> u16 {
+        self.pc
+    }
+
     #[inline]
     fn read_byte(&mut self) -> u8 {
         let res = self.ram[self.pc as usize];
@@ -76,6 +81,14 @@ impl<'a> Cpu<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    pub struct AnyMachine {}
+    impl Machine for AnyMachine {
+        fn deo(&mut self, _: &mut Cpu, _: u8) -> bool {
+            false
+        }
+        fn dei(&mut self, _: &mut Cpu, _: u8) {}
+    }
 
     fn zeroed_memory() -> [u8; 0x10000] {
         [0_u8; 0x10000]
@@ -100,7 +113,7 @@ mod tests {
         let mut rom = rom_from(&[0x01, 0x01, 0x00]);
         let mut cpu = Cpu::new(&mut rom);
 
-        let pc = cpu.run(0x00);
+        let pc = cpu.run(0x00, &mut AnyMachine {});
 
         assert_eq!(pc, 0x03);
         assert_eq!(pc, cpu.pc);
@@ -112,7 +125,7 @@ mod tests {
         rom[0xffff] = 0x01;
         let mut cpu = Cpu::new(&mut rom);
 
-        let pc = cpu.run(0xffff);
+        let pc = cpu.run(0xffff, &mut AnyMachine {});
 
         assert_eq!(pc, 0x01);
         assert_eq!(pc, cpu.pc);
