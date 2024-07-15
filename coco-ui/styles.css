@@ -1,0 +1,12 @@
+body {
+  display: grid;
+  justify-content: center;
+  font-family: monospace;
+}
+
+.coco-video {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 768px; /* x4 */
+  background: black;
+}
