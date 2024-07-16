@@ -1,5 +1,5 @@
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::{cell::RefCell, path::Display};
 use wasm_bindgen::prelude::*;
 
 use coco_core::Cpu;
