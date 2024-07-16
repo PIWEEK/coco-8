@@ -26,9 +26,10 @@ mod opcodes {
 }
 
 /// COCO-8 CPU.
-pub struct Cpu<'a> {
+#[derive(Debug)]
+pub struct Cpu {
     /// Main memory (64 Kb)
-    ram: &'a mut [u8; 0x10000],
+    ram: [u8; 0x10000],
     /// Main, working stack (256 bytes)
     stack: Stack,
     /// Return stack (256 bytes)
@@ -37,11 +38,11 @@ pub struct Cpu<'a> {
     pc: u16,
 }
 
-impl<'a> Cpu<'a> {
+impl Cpu {
     /// Returns a new CPU with their memory, stacks and PC reset to zero.
-    pub fn new(ram: &'a mut [u8; 0x10000]) -> Self {
+    pub fn new(ram: [u8; 0x10000]) -> Self {
         Self {
-            ram,
+            ram: ram,
             stack: Stack::new(),
             ret_stack: Stack::new(),
             pc: 0,
@@ -102,16 +103,16 @@ mod tests {
 
     #[test]
     fn creates_cpu() {
-        let mut memory = zeroed_memory();
-        let cpu = Cpu::new(&mut memory);
+        let memory = zeroed_memory();
+        let cpu = Cpu::new(memory);
 
         assert_eq!(cpu.pc, 0);
     }
 
     #[test]
     pub fn runs_until_break() {
-        let mut rom = rom_from(&[0x01, 0x01, 0x00]);
-        let mut cpu = Cpu::new(&mut rom);
+        let rom = rom_from(&[0x01, 0x01, 0x00]);
+        let mut cpu = Cpu::new(rom);
 
         let pc = cpu.run(0x00, &mut AnyMachine {});
 
@@ -123,7 +124,7 @@ mod tests {
     pub fn run_wraps_pc_at_the_end_of_ram() {
         let mut rom = zeroed_memory();
         rom[0xffff] = 0x01;
-        let mut cpu = Cpu::new(&mut rom);
+        let mut cpu = Cpu::new(rom);
 
         let pc = cpu.run(0xffff, &mut AnyMachine {});
 

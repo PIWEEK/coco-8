@@ -3,10 +3,5 @@ name = "coco-vm"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
-wasm-bindgen = "0.2.92"
-
 coco_core = { path = "../coco-core", package = "coco-core" }

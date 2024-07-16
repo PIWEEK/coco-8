@@ -1,4 +1,4 @@
-import initWasm, { runRom } from "./vendor/coco_vm.js";
+import initWasm, { runRom } from "./vendor/coco_ui.js";
 
 async function handleFile(file) {
   const buffer = file.arrayBuffer();
@@ -32,7 +32,7 @@ function setupRomSelector(selectEl, defaultRom) {
 }
 
 async function main() {
-  const _ = await initWasm("./vendor/coco_vm_bg.wasm");
+  const _ = await initWasm("./vendor/coco_ui_bg.wasm");
   const romSelector = document.querySelector("#coco-rom-selector");
 
   const defaultRom = "empty.rom";
