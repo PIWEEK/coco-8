@@ -1,25 +1,45 @@
+mod system;
+mod video;
+
 use coco_core::{Cpu, Machine};
+use system::SystemDevice;
+use video::{VideoBuffer, VideoDevice};
 
-pub const SCREEN_WIDTH: usize = 192;
-pub const SCREEN_HEIGHT: usize = 144;
-const VIDEO_BUFFER_LEN: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
+pub use video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
-pub type Pixel = u8;
+trait Device {
+    fn dei(&mut self, cpu: &mut Cpu, target: u8);
+    fn deo(&mut self, cpu: &mut Cpu, target: u8);
+}
 
-#[derive(Debug, Clone, Copy)]
-pub struct Output {
-    pub pc: u16,
+#[derive(Debug, Clone)]
+pub struct DeviceOutput {
+    pub shall_halt: bool,
+    pub sys_stdout: String,
+}
+
+impl core::default::Default for DeviceOutput {
+    fn default() -> Self {
+        DeviceOutput {
+            shall_halt: false,
+            sys_stdout: String::from(""),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Vm {
     video: VideoDevice,
+    system: SystemDevice,
 }
 
 impl Machine for Vm {
     fn dei(&mut self, cpu: &mut Cpu, target: u8) {}
-    fn deo(&mut self, cpu: &mut Cpu, target: u8) -> bool {
-        false
+    fn deo(&mut self, cpu: &mut Cpu, target: u8) {
+        match target & 0xf0 {
+            0x00 => self.system.deo(cpu, target),
+            _ => unimplemented!(),
+        }
     }
 }
 
@@ -27,40 +47,29 @@ impl Vm {
     pub fn new() -> Self {
         Self {
             video: VideoDevice::new(),
+            system: SystemDevice::new(),
         }
     }
 
-    pub fn on_reset(&mut self, cpu: &mut Cpu) -> Output {
+    pub fn on_reset(&mut self, cpu: &mut Cpu) -> DeviceOutput {
         cpu.run(0x100, self);
-        Output { pc: cpu.pc() }
+        self.output()
     }
 
-    pub fn on_video(&mut self, cpu: &mut Cpu) -> Output {
+    pub fn on_video(&mut self, cpu: &mut Cpu) -> DeviceOutput {
         // TODO: call video vector
-        cpu.run(0x100, self);
-
-        Output { pc: cpu.pc() }
+        cpu.run(0x200, self);
+        self.output()
     }
 
-    pub fn pixels(&self) -> (&[Pixel; VIDEO_BUFFER_LEN], &[Pixel; VIDEO_BUFFER_LEN]) {
+    pub fn pixels(&self) -> (&VideoBuffer, &VideoBuffer) {
         (&self.video.background, &self.video.foreground)
     }
-}
-#[derive(Debug)]
-struct VideoDevice {
-    background: [Pixel; VIDEO_BUFFER_LEN],
-    foreground: [Pixel; VIDEO_BUFFER_LEN],
-}
 
-impl VideoDevice {
-    pub fn new() -> Self {
-        let mut buffer = [0x00 as Pixel; VIDEO_BUFFER_LEN];
-        for i in 0..VIDEO_BUFFER_LEN {
-            buffer[i] = (i % 0x10) as Pixel;
-        }
-        Self {
-            background: [0x00; VIDEO_BUFFER_LEN],
-            foreground: buffer,
+    pub fn output(&mut self) -> DeviceOutput {
+        DeviceOutput {
+            shall_halt: false,
+            sys_stdout: self.system.stdout(),
         }
     }
 }

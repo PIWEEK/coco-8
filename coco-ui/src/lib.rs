@@ -1,14 +1,14 @@
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::{cell::RefCell, path::Display};
 use wasm_bindgen::prelude::*;
 
 use coco_core::Cpu;
 use coco_vm::{Vm, SCREEN_HEIGHT, SCREEN_WIDTH};
 
-#[wasm_bindgen]
+#[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct Output {
-    pub pc: u16,
+    pub debug: String,
 }
 
 pub type Result<T> = core::result::Result<T, JsValue>;
@@ -38,10 +38,14 @@ const THEME: [RGB; 0x10] = [
 
 #[wasm_bindgen(js_name=runRom)]
 pub fn run_rom(rom: &[u8]) -> Result<Output> {
-    let mut memory = [0; 0x10000];
-    memory[0x100..(0x100 + rom.len())].copy_from_slice(rom);
+    web_sys::console::log_1(&JsValue::from(
+        rom.iter()
+            .map(|x| format!("{:02x}", x))
+            .collect::<Vec<String>>()
+            .join(" "),
+    ));
 
-    let cpu = Rc::new(RefCell::new(Cpu::new(memory)));
+    let cpu = Rc::new(RefCell::new(Cpu::new(&rom)));
     let vm = Rc::new(RefCell::new(Vm::new()));
 
     // call reset vector
@@ -61,7 +65,9 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
 
     request_animation_frame(g.borrow().as_ref().unwrap());
 
-    Ok(Output { pc: output.pc })
+    Ok(Output {
+        debug: output.sys_stdout,
+    })
 }
 
 fn render(vm: &Vm, ctx: &web_sys::CanvasRenderingContext2d, buffer: &mut DisplayBuffer) {

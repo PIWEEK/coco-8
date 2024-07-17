@@ -1,11 +1,13 @@
 import initWasm, { runRom } from "./vendor/coco_ui.js";
 
 async function handleFile(file) {
-  const buffer = file.arrayBuffer();
+  const buffer = await file.arrayBuffer();
   const rom = new Uint8Array(buffer);
 
   const output = runRom(rom);
-  console.debug(`PC: 0x${output.pc.toString(16)}`);
+  if (output.debug) {
+    console.log(output.debug);
+  }
 }
 
 async function fetchRom(path) {
@@ -35,7 +37,7 @@ async function main() {
   const _ = await initWasm("./vendor/coco_ui_bg.wasm");
   const romSelector = document.querySelector("#coco-rom-selector");
 
-  const defaultRom = "empty.rom";
+  const defaultRom = "deo_system_debug.rom";
   await setupRomSelector(romSelector, defaultRom);
 
   const rom = await fetchRom(`/roms/${defaultRom}`);
