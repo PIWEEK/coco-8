@@ -51,9 +51,9 @@ impl Device for SystemDevice {
         match target {
             SystemPorts::VECTOR => {}
             SystemPorts::DEBUG => self.debug(cpu),
-            _ => panic!("Unimplemented device port {}", target),
+            _ => {}
         }
     }
 
-    fn dei(&mut self, cpu: &mut coco_core::Cpu, target: u8) {}
+    fn dei(&mut self, _: &mut coco_core::Cpu, _: u8) {}
 }

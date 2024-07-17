@@ -1,13 +1,14 @@
 mod system;
 mod video;
 
-use coco_core::{Cpu, Machine};
-use system::SystemDevice;
-use video::{VideoBuffer, VideoDevice};
+use coco_core::{Cpu, Machine, Ports};
+use system::{SystemDevice, SystemPorts};
+use video::{VideoBuffer, VideoDevice, VideoPorts};
 
 pub use video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 trait Device {
+    #[allow(dead_code)]
     fn dei(&mut self, cpu: &mut Cpu, target: u8);
     fn deo(&mut self, cpu: &mut Cpu, target: u8);
 }
@@ -34,10 +35,12 @@ pub struct Vm {
 }
 
 impl Machine for Vm {
-    fn dei(&mut self, cpu: &mut Cpu, target: u8) {}
+    fn dei(&mut self, _: &mut Cpu, _: u8) {}
     fn deo(&mut self, cpu: &mut Cpu, target: u8) {
+        let offset = target & 0x0f;
         match target & 0xf0 {
-            0x00 => self.system.deo(cpu, target),
+            SystemPorts::BASE => self.system.deo(cpu, offset),
+            VideoPorts::BASE => self.video.deo(cpu, offset),
             _ => unimplemented!(),
         }
     }

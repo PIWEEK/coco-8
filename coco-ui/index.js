@@ -37,7 +37,7 @@ async function main() {
   const _ = await initWasm("./vendor/coco_ui_bg.wasm");
   const romSelector = document.querySelector("#coco-rom-selector");
 
-  const defaultRom = "deo_system_debug.rom";
+  const defaultRom = "put_pixel.rom";
   await setupRomSelector(romSelector, defaultRom);
 
   const rom = await fetchRom(`/roms/${defaultRom}`);

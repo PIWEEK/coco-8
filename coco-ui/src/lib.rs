@@ -57,6 +57,8 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
 
     let ctx = canvas_context();
     let mut canvas_buffer: DisplayBuffer = [0; SCREEN_WIDTH * SCREEN_HEIGHT * 4];
+    render(&vm.borrow(), &ctx, &mut canvas_buffer);
+
     *g.borrow_mut() = Some(Closure::new(move || {
         vm.borrow_mut().on_video(&mut cpu.borrow_mut());
         render(&vm.borrow(), &ctx, &mut canvas_buffer);
@@ -72,10 +74,6 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
 
 fn render(vm: &Vm, ctx: &web_sys::CanvasRenderingContext2d, buffer: &mut DisplayBuffer) {
     let (bg, fg) = vm.pixels();
-
-    // clear background
-    ctx.set_fill_style(&JsValue::from("#000000"));
-    ctx.fill_rect(0.0, 0.0, SCREEN_WIDTH as f64, SCREEN_HEIGHT as f64);
 
     // update buffer and copy its pixel to the canvas
     update_display_buffer(buffer, bg, fg);
