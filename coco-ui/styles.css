@@ -1,12 +1,30 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
 body {
-  display: grid;
-  justify-content: center;
   font-family: monospace;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 select, button {
-  font-family: monospace;
+  font: inherit;
   padding: 0.25rem 1rem;
+}
+
+.wrapper {
+  padding: 1rem;
+  display: grid;
+  place-content: center;
+  row-gap: 1rem;
+  height: 100vh;
 }
 
 .coco-video {
@@ -14,4 +32,16 @@ select, button {
   image-rendering: crisp-edges;
   width: 768px; /* x4 */
   background: black;
+}
+
+.coco-controls {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.bytecode {
+  max-height: 20vh;
+  border: 1px solid black;
+  padding: 1rem;
 }

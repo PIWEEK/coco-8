@@ -4,6 +4,11 @@ async function handleFile(file) {
   const buffer = await file.arrayBuffer();
   const rom = new Uint8Array(buffer);
 
+  const bytecode = Array.from(rom)
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join(" ");
+  document.querySelector("#coco-bytecode").innerHTML = bytecode;
+
   const output = runRom(rom);
   if (output.debug) {
     console.log(output.debug);
@@ -33,12 +38,22 @@ function setupRomSelector(selectEl, defaultRom) {
   });
 }
 
+function setupControls() {
+  let showBytecodeCheckbox = document.querySelector("#coco-show-bytecode");
+  let bytecodeEl = document.querySelector("#coco-bytecode");
+
+  showBytecodeCheckbox.addEventListener("change", (event) => {
+    bytecodeEl.style.display = event.target.checked ? "block" : "none";
+  });
+}
+
 async function main() {
   const _ = await initWasm("./vendor/coco_ui_bg.wasm");
   const romSelector = document.querySelector("#coco-rom-selector");
 
   const defaultRom = "put_pixel.rom";
-  await setupRomSelector(romSelector, defaultRom);
+  setupRomSelector(romSelector, defaultRom);
+  setupControls();
 
   const rom = await fetchRom(`/roms/${defaultRom}`);
   if (rom) {
