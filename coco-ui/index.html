@@ -7,18 +7,25 @@
   <link rel="stylesheet" href="styles.css" type="text/css">
 </head>
 <body>
+  <div class="wrapper">
   <header>
     <h1>👻-8</h1>
   </header>
   <main>
     <canvas id="coco-video" class="coco-video" width="192" height="144"></canvas>
-      <p>
+      <section class="coco-controls">
         <select name="rom" id="coco-rom-selector">
           <option value="empty.rom">Empty</option>
           <option value="deo_system_debug.rom">Debug</option>
           <option value="put_pixel.rom">Pixel</option>
         </select>
-      </p>
+
+        <div>
+          <input type="checkbox" id="coco-show-bytecode">
+          <label for="coco-show-bytecode">Show bytecode</label>
+        </div>
+      </section>
+      <section id="coco-bytecode" class="bytecode" style="display: none;"></section>
   </main>
   <footer>
     <p>Crafted with 🖤 by <a href="https://www.ladybenko.net">ladybenko</a>.</p>
@@ -26,5 +33,6 @@
       <a href="https://github.com/PIWEEK/coco-8">Source code</a>
     </p>
   </footer>
+  </div>
 </body>
 </html>
