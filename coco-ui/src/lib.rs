@@ -8,7 +8,7 @@ use coco_vm::{Vm, SCREEN_HEIGHT, SCREEN_WIDTH};
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct Output {
-    pub message: Option<String>,
+    pub debug: String,
 }
 
 pub type Result<T> = core::result::Result<T, JsValue>;
@@ -38,6 +38,13 @@ const THEME: [RGB; 0x10] = [
 
 #[wasm_bindgen(js_name=runRom)]
 pub fn run_rom(rom: &[u8]) -> Result<Output> {
+    web_sys::console::log_1(&JsValue::from(
+        rom.iter()
+            .map(|x| format!("{:02x}", x))
+            .collect::<Vec<String>>()
+            .join(" "),
+    ));
+
     let cpu = Rc::new(RefCell::new(Cpu::new(&rom)));
     let vm = Rc::new(RefCell::new(Vm::new()));
 
@@ -59,7 +66,7 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
     request_animation_frame(g.borrow().as_ref().unwrap());
 
     Ok(Output {
-        message: output.message,
+        debug: output.sys_stdout,
     })
 }
 

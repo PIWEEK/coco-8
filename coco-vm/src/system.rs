@@ -1,5 +1,3 @@
-use crate::DeviceOutput;
-
 use super::Device;
 use coco_core::Ports;
 
@@ -11,37 +9,47 @@ impl Ports for SystemPorts {
 }
 
 impl SystemPorts {
-    const DEBUG: u8 = 0x00;
+    const VECTOR: u8 = 0x00;
+    const DEBUG: u8 = 0x02;
 }
 
 #[derive(Debug)]
-pub struct SystemDevice {}
+pub struct SystemDevice {
+    stdout: String,
+}
 
 impl SystemDevice {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            stdout: "".to_string(),
+        }
     }
 
-    pub fn debug(&self, cpu: &mut coco_core::Cpu) -> DeviceOutput {
+    pub fn debug(&mut self, cpu: &mut coco_core::Cpu) {
         let ports = cpu.device_page::<SystemPorts>();
-
-        if !ports[SystemPorts::DEBUG as usize] > 0 {
-            return DeviceOutput::default();
+        if !ports[SystemPorts::DEBUG as usize] == 0 {
+            return;
         }
 
         // reset debug port to zero
         ports[SystemPorts::DEBUG as usize] = 0x00;
 
         // output debug info
-        let mut res = DeviceOutput::default();
-        res.message = Some(format!("{}", cpu));
+        self.stdout += &format!("{}", cpu);
+    }
+
+    /// Returns the stdout buffer and flushes it
+    pub fn stdout(&mut self) -> String {
+        let res = self.stdout.to_owned();
+        self.stdout = "".to_string();
         res
     }
 }
 
 impl Device for SystemDevice {
-    fn deo(&mut self, cpu: &mut coco_core::Cpu, target: u8) -> DeviceOutput {
+    fn deo(&mut self, cpu: &mut coco_core::Cpu, target: u8) {
         match target {
+            SystemPorts::VECTOR => {}
             SystemPorts::DEBUG => self.debug(cpu),
             _ => panic!("Unimplemented device port {}", target),
         }

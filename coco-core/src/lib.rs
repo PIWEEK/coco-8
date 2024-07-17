@@ -1,16 +1,17 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
+use core::cmp;
 use core::fmt;
 
 mod stack;
 use stack::Stack;
 
-mod opcodes;
+pub mod opcodes;
 
 /// The trait to implement for COCO virtual machines.
 pub trait Machine {
-    fn deo(&mut self, cpu: &mut Cpu, target: u8) -> bool;
+    fn deo(&mut self, cpu: &mut Cpu, target: u8);
     fn dei(&mut self, cpu: &mut Cpu, target: u8);
 }
 
@@ -39,7 +40,7 @@ impl Cpu {
     pub fn new(rom: &[u8]) -> Self {
         // load rom at address 0x100
         let mut ram = [0; 0x10000];
-        ram[0x100..].copy_from_slice(rom);
+        ram[0x100..cmp::min(0x100 + rom.len(), 0x10000)].copy_from_slice(rom);
 
         Self {
             ram,
@@ -52,13 +53,14 @@ impl Cpu {
 
     /// Runs the code starting the PC in the given address until
     /// it finds a BRK opcode
-    pub fn run<M: Machine>(&mut self, addr: u16, _: &mut M) -> u16 {
+    pub fn run(&mut self, addr: u16, machine: &mut impl Machine) -> u16 {
         self.pc = addr;
         loop {
             let op = self.read_byte();
             match op {
                 opcodes::BRK => break,
                 opcodes::PUSH => self.op_push(),
+                opcodes::DEO => self.op_deo(machine),
                 _ => {}
             }
         }
@@ -89,6 +91,18 @@ impl Cpu {
         let value = self.read_byte();
         self.stack.push_byte(value);
     }
+
+    #[inline]
+    fn op_deo(&mut self, machine: &mut impl Machine) {
+        let target = self.stack.pop_byte();
+
+        // write value to device port
+        let value = self.stack.pop_byte();
+        self.devices[target as usize] = value;
+
+        // callback for I/O
+        machine.deo(self, target);
+    }
 }
 
 impl fmt::Display for Cpu {
@@ -100,13 +114,12 @@ impl fmt::Display for Cpu {
 
 #[cfg(test)]
 mod tests {
+    use super::opcodes::*;
     use super::*;
 
     pub struct AnyMachine {}
     impl Machine for AnyMachine {
-        fn deo(&mut self, _: &mut Cpu, _: u8) -> bool {
-            false
-        }
+        fn deo(&mut self, _: &mut Cpu, _: u8) {}
         fn dei(&mut self, _: &mut Cpu, _: u8) {}
     }
 
@@ -130,7 +143,7 @@ mod tests {
 
     #[test]
     pub fn runs_until_break() {
-        let rom = rom_from(&[0x01, 0x01, 0x00]);
+        let rom = rom_from(&[0x01, 0x01, BRK]);
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
@@ -153,12 +166,24 @@ mod tests {
 
     #[test]
     pub fn push_opcode() {
-        let rom = rom_from(&[0x80, 0xab, 0x00]);
+        let rom = rom_from(&[PUSH, 0xab, BRK]);
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
         assert_eq!(pc, 0x103);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0xab);
+    }
+
+    #[test]
+    pub fn deo_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0x02, DEO, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.devices[0x02], 0xab);
+        // TODO: check AnyMachine.deo has been called with 0xab as target arg
     }
 }
