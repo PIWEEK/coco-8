@@ -41,7 +41,9 @@ impl VideoDevice {
 
     #[inline]
     fn xy(&self, ports: &mut [u8]) -> (u8, u8) {
-        (ports[VideoPorts::X as usize], ports[VideoPorts::Y as usize])
+        let x = cmp::min(ports[VideoPorts::X as usize], (SCREEN_WIDTH - 1) as u8);
+        let y = cmp::min(ports[VideoPorts::Y as usize], (SCREEN_HEIGHT - 1) as u8);
+        (x, y)
     }
 
     fn deo_pixel(&mut self, cpu: &mut Cpu) {
@@ -50,15 +52,38 @@ impl VideoDevice {
 
         let (x, y) = self.xy(ports);
         let color = pixel & 0x0f;
-        let layer = (pixel & 0b0001_0000) >> 4;
+        let is_foreground = ((pixel & 0b0001_0000) >> 4) == 0x01;
+        let is_fill = ((pixel & 0b0010_0000) >> 5) == 0x01;
 
-        self.put_pixel(x, y, color, layer == 0x01);
+        if is_fill {
+            self.fill(x, y, color, is_foreground);
+        } else {
+            self.put_pixel(x, y, color, is_foreground);
+        }
     }
 
+    fn fill(&mut self, x: u8, y: u8, color: Pixel, is_foreground: bool) {
+        let chunk = vec![color; SCREEN_WIDTH - x as usize];
+        let layer = self.layer(is_foreground);
+
+        for row in (y as usize)..SCREEN_HEIGHT {
+            let i = x as usize + row as usize * SCREEN_WIDTH;
+            layer[i..(i + chunk.len())].copy_from_slice(&chunk);
+        }
+    }
+
+    #[inline]
+    fn layer(&mut self, is_foreground: bool) -> &mut [Pixel; VIDEO_BUFFER_LEN] {
+        if is_foreground {
+            &mut self.foreground
+        } else {
+            &mut self.background
+        }
+    }
+
+    #[inline]
     fn put_pixel(&mut self, x: u8, y: u8, color: u8, is_foreground: bool) {
-        let x = cmp::min(x as usize, SCREEN_WIDTH - 1);
-        let y = cmp::min(y as usize, SCREEN_HEIGHT - 1);
-        let i = y * SCREEN_WIDTH + x;
+        let i = y as usize * SCREEN_WIDTH + x as usize;
 
         if is_foreground {
             self.foreground[i] = color;
