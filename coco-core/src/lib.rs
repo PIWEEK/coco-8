@@ -1,10 +1,17 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
+use core::fmt;
+
 /// The trait to implement for COCO virtual machines.
 pub trait Machine {
     fn deo(&mut self, cpu: &mut Cpu, target: u8) -> bool;
     fn dei(&mut self, cpu: &mut Cpu, target: u8);
+}
+
+/// The trait to implement a COCO device's ports
+pub trait Ports {
+    const BASE: u8;
 }
 
 #[derive(Debug)]
@@ -20,7 +27,24 @@ impl Stack {
             index: 0,
         }
     }
+
+    fn byte_at(&self, i: u8) -> u8 {
+        return self.data[i as usize];
+    }
 }
+
+impl fmt::Display for Stack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for i in self.index.saturating_sub(8)..self.index {
+            write!(f, "{:02x}", self.byte_at(i))?;
+            if i < self.index - 1 {
+                write!(f, " ")?;
+            }
+        }
+        Ok(())
+    }
+}
+
 mod opcodes {
     pub const BRK: u8 = 0x00;
 }
@@ -30,6 +54,8 @@ mod opcodes {
 pub struct Cpu {
     /// Main memory (64 Kb)
     ram: [u8; 0x10000],
+    /// Device page (256 bytes)
+    devices: [u8; 0x100],
     /// Main, working stack (256 bytes)
     stack: Stack,
     /// Return stack (256 bytes)
@@ -43,6 +69,7 @@ impl Cpu {
     pub fn new(ram: [u8; 0x10000]) -> Self {
         Self {
             ram: ram,
+            devices: [0; 0x100],
             stack: Stack::new(),
             ret_stack: Stack::new(),
             pc: 0,
@@ -66,6 +93,12 @@ impl Cpu {
         self.pc
     }
 
+    /// Returns the requested device page
+    #[inline]
+    pub fn device_page<D: Ports>(&mut self) -> &mut [u8] {
+        &mut self.devices[(D::BASE as usize)..(D::BASE as usize + 0x10)]
+    }
+
     /// Returns the current value for the program counter (PC)
     pub fn pc(&self) -> u16 {
         self.pc
@@ -76,6 +109,13 @@ impl Cpu {
         let res = self.ram[self.pc as usize];
         self.pc = self.pc.wrapping_add(1);
         res
+    }
+}
+
+impl fmt::Display for Cpu {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "WRK: [{}]", self.stack)?;
+        write!(f, "RET: [{}]", self.ret_stack)
     }
 }
 

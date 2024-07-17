@@ -5,7 +5,9 @@ async function handleFile(file) {
   const rom = new Uint8Array(buffer);
 
   const output = runRom(rom);
-  console.debug(`PC: 0x${output.pc.toString(16)}`);
+  if (output.message) {
+    console.log(output.message);
+  }
 }
 
 async function fetchRom(path) {

@@ -5,10 +5,10 @@ use wasm_bindgen::prelude::*;
 use coco_core::Cpu;
 use coco_vm::{Vm, SCREEN_HEIGHT, SCREEN_WIDTH};
 
-#[wasm_bindgen]
+#[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct Output {
-    pub pc: u16,
+    pub message: Option<String>,
 }
 
 pub type Result<T> = core::result::Result<T, JsValue>;
@@ -61,7 +61,9 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
 
     request_animation_frame(g.borrow().as_ref().unwrap());
 
-    Ok(Output { pc: output.pc })
+    Ok(Output {
+        message: output.message,
+    })
 }
 
 fn render(vm: &Vm, ctx: &web_sys::CanvasRenderingContext2d, buffer: &mut DisplayBuffer) {
