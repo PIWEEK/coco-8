@@ -38,10 +38,7 @@ const THEME: [RGB; 0x10] = [
 
 #[wasm_bindgen(js_name=runRom)]
 pub fn run_rom(rom: &[u8]) -> Result<Output> {
-    let mut memory = [0; 0x10000];
-    memory[0x100..(0x100 + rom.len())].copy_from_slice(rom);
-
-    let cpu = Rc::new(RefCell::new(Cpu::new(memory)));
+    let cpu = Rc::new(RefCell::new(Cpu::new(&rom)));
     let vm = Rc::new(RefCell::new(Vm::new()));
 
     // call reset vector

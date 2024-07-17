@@ -36,9 +36,13 @@ pub struct Cpu {
 
 impl Cpu {
     /// Returns a new CPU with their memory, stacks and PC reset to zero.
-    pub fn new(ram: [u8; 0x10000]) -> Self {
+    pub fn new(rom: &[u8]) -> Self {
+        // load rom at address 0x100
+        let mut ram = [0; 0x10000];
+        ram[0x100..].copy_from_slice(rom);
+
         Self {
-            ram: ram,
+            ram,
             devices: [0; 0x100],
             stack: Stack::new(),
             ret_stack: Stack::new(),
@@ -53,9 +57,8 @@ impl Cpu {
         loop {
             let op = self.read_byte();
             match op {
-                opcodes::BRK => {
-                    break;
-                }
+                opcodes::BRK => break,
+                opcodes::PUSH => self.op_push(),
                 _ => {}
             }
         }
@@ -80,6 +83,12 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(1);
         res
     }
+
+    #[inline]
+    fn op_push(&mut self) {
+        let value = self.read_byte();
+        self.stack.push_byte(value);
+    }
 }
 
 impl fmt::Display for Cpu {
@@ -101,12 +110,12 @@ mod tests {
         fn dei(&mut self, _: &mut Cpu, _: u8) {}
     }
 
-    fn zeroed_memory() -> [u8; 0x10000] {
-        [0_u8; 0x10000]
+    fn zeroed_memory() -> [u8; 0x10000 - 0x100] {
+        [0_u8; 0x10000 - 0x100]
     }
 
-    fn rom_from(rom: &[u8]) -> [u8; 0x10000] {
-        let mut res = [0_u8; 0x10000];
+    fn rom_from(rom: &[u8]) -> [u8; 0x10000 - 0x100] {
+        let mut res = [0_u8; 0x10000 - 0x100];
         res[0..rom.len()].copy_from_slice(rom);
         res
     }
@@ -114,7 +123,7 @@ mod tests {
     #[test]
     fn creates_cpu() {
         let memory = zeroed_memory();
-        let cpu = Cpu::new(memory);
+        let cpu = Cpu::new(&memory);
 
         assert_eq!(cpu.pc, 0);
     }
@@ -122,23 +131,34 @@ mod tests {
     #[test]
     pub fn runs_until_break() {
         let rom = rom_from(&[0x01, 0x01, 0x00]);
-        let mut cpu = Cpu::new(rom);
+        let mut cpu = Cpu::new(&rom);
 
-        let pc = cpu.run(0x00, &mut AnyMachine {});
+        let pc = cpu.run(0x100, &mut AnyMachine {});
 
-        assert_eq!(pc, 0x03);
+        assert_eq!(pc, 0x103);
         assert_eq!(pc, cpu.pc);
     }
 
     #[test]
     pub fn run_wraps_pc_at_the_end_of_ram() {
         let mut rom = zeroed_memory();
-        rom[0xffff] = 0x01;
-        let mut cpu = Cpu::new(rom);
+        rom[rom.len() - 1] = 0x01;
+        let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0xffff, &mut AnyMachine {});
 
         assert_eq!(pc, 0x01);
         assert_eq!(pc, cpu.pc);
+    }
+
+    #[test]
+    pub fn push_opcode() {
+        let rom = rom_from(&[0x80, 0xab, 0x00]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x103);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0xab);
     }
 }
