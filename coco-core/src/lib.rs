@@ -59,9 +59,10 @@ impl Cpu {
             let op = self.read_byte();
             match op {
                 opcodes::BRK => break,
+                opcodes::DEO => self.op_deo(machine),
+                opcodes::DEO2 => self.op_deo2(machine),
                 opcodes::PUSH => self.op_push(),
                 opcodes::PUSH2 => self.op_push2(),
-                opcodes::DEO => self.op_deo(machine),
                 _ => {}
             }
         }
@@ -117,6 +118,20 @@ impl Cpu {
         self.devices[target as usize] = value;
 
         // callback for I/O
+        machine.deo(self, target);
+    }
+
+    #[inline]
+    fn op_deo2(&mut self, machine: &mut impl Machine) {
+        let target = self.stack.pop_byte();
+
+        // write short value to device port
+        let value = self.stack.pop_short();
+        let [hi, lo] = value.to_be_bytes();
+        self.devices[target as usize] = hi;
+        self.devices[target.wrapping_add(1) as usize] = lo;
+
+        // callback for I/0
         machine.deo(self, target);
     }
 }
@@ -211,6 +226,19 @@ mod tests {
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 0);
         assert_eq!(cpu.devices[0x02], 0xab);
+        // TODO: check AnyMachine.deo has been called with 0xab as target arg
+    }
+
+    #[test]
+    fn deo2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH, 0x00, DEO2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x107);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.devices[0x00], 0xab);
+        assert_eq!(cpu.devices[0x01], 0xcd);
         // TODO: check AnyMachine.deo has been called with 0xab as target arg
     }
 }

@@ -35,6 +35,12 @@ impl Stack {
         res
     }
 
+    pub fn pop_short(&mut self) -> u16 {
+        let lo = self.pop_byte();
+        let hi = self.pop_byte();
+        u16::from_be_bytes([hi, lo])
+    }
+
     pub fn byte_at(&self, i: u8) -> u8 {
         return self.data[i as usize];
     }
