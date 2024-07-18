@@ -1,0 +1,52 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  --width: 768px; /* x4 */
+  margin: 0;
+}
+
+body {
+  font-family: monospace;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+}
+
+select, button {
+  font: inherit;
+  padding: 0.25rem 1rem;
+}
+
+.wrapper {
+  padding: 1rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  row-gap: 1rem;
+  /* height: 100vh; */
+  width: var(--width);
+}
+
+.coco-video {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 100%;
+  background: black;
+}
+
+.coco-controls {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.bytecode {
+  max-height: 20vh;
+  border: 1px solid black;
+  padding: 1rem;
+  max-width: (--width);
+}
