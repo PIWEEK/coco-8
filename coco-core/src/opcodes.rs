@@ -1,5 +1,13 @@
 pub const BRK: u8 = 0x00;
+pub const INC: u8 = 0x01;
+pub const DUP: u8 = 0x06;
+pub const DUP2: u8 = 0x26;
+pub const DEI: u8 = 0x16;
 pub const DEO: u8 = 0x17;
+pub const ADD: u8 = 0x18;
+pub const SUB: u8 = 0x19;
+pub const MUL: u8 = 0x1a;
+pub const DIV: u8 = 0x1b;
 pub const DEO2: u8 = 0x37;
 pub const PUSH: u8 = 0x80;
 pub const PUSH2: u8 = 0xa0;
