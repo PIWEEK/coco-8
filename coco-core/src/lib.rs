@@ -66,6 +66,7 @@ impl Cpu {
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
                 opcodes::SUB => self.op_sub(),
+                opcodes::MUL => self.op_mul(),
                 opcodes::PUSH => self.op_push(),
                 opcodes::PUSH2 => self.op_push2(),
                 _ => {}
@@ -180,6 +181,14 @@ impl Cpu {
         let b = self.stack.pop_byte();
         let a = self.stack.pop_byte();
         let value = a.wrapping_sub(b);
+        self.stack.push_byte(value);
+    }
+
+    #[inline]
+    fn op_mul(&mut self) {
+        let b = self.stack.pop_byte();
+        let a = self.stack.pop_byte();
+        let value = a.wrapping_mul(b);
         self.stack.push_byte(value);
     }
 }
@@ -299,6 +308,7 @@ mod tests {
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x104);
         assert_eq!(cpu.stack.len(), 2);
         assert_eq!(cpu.stack.short_at(0), 0xabcd);
@@ -311,6 +321,7 @@ mod tests {
         cpu.devices[0x10] = 0xab;
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x104);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0xab);
@@ -322,6 +333,7 @@ mod tests {
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 0);
         assert_eq!(cpu.devices[0x02], 0xab);
@@ -334,6 +346,7 @@ mod tests {
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x107);
         assert_eq!(cpu.stack.len(), 0);
         assert_eq!(cpu.devices[0x00], 0xab);
@@ -347,8 +360,21 @@ mod tests {
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0xa9);
+    }
+
+    #[test]
+    fn mul_opcode() {
+        let rom = rom_from(&[PUSH, 0x03, PUSH, 0x02, MUL, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x06);
     }
 }
