@@ -78,15 +78,22 @@ impl VideoDevice {
         let is_fill = ((pixel & 0b0010_0000) >> 5) == 0x01;
 
         if is_fill {
-            self.fill(x, y, color, layer);
+            let is_flip_x = ((pixel & 0b1000_0000) >> 7) == 0x01;
+            let is_flip_y = ((pixel & 0b0100_0000) >> 6) == 0x01;
+            self.fill(x, y, color, layer, is_flip_x, is_flip_y);
         } else {
             self.put_pixel(x, y, color, layer);
         }
     }
 
-    fn fill(&mut self, x: u8, y: u8, color: Pixel, layer: u8) {
-        for col in x..SCREEN_WIDTH {
-            for row in y..SCREEN_HEIGHT {
+    fn fill(&mut self, x: u8, y: u8, color: Pixel, layer: u8, is_flip_x: bool, is_flip_y: bool) {
+        let start_x = if is_flip_x { 0 } else { x };
+        let end_x = if is_flip_x { x } else { SCREEN_WIDTH - 1 };
+        let start_y = if is_flip_y { 0 } else { y };
+        let end_y = if is_flip_y { y } else { SCREEN_HEIGHT - 1 };
+
+        for col in start_x..=end_x {
+            for row in start_y..=end_y {
                 self.put_pixel(col, row, color, layer);
             }
         }
