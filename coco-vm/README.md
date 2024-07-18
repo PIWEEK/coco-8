@@ -79,3 +79,18 @@ PUSH 00 PUSH 12 DEO # x = 0x00
 PUSH 00 PUSH 13 DEO # y = 0x00
 PUSH 30 PUSH 13 DEO # fills the foreground with transparent color
 ```
+
+The **`sprite` port** is used to draw sprites (or tiles). A sprite a 8x8 pixel image, with 4 bits per pixel. Writing to this port will take the sprite addressed by the **`address` port** paint it at the coordinates set by the **`x` and `y` ports**.
+
+Sprite example:
+
+```
+00777700
+07777770
+67177176
+7f7777f7
+77111177
+77728777
+77777777
+76077067
+```

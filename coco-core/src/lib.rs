@@ -60,6 +60,7 @@ impl Cpu {
             match op {
                 opcodes::BRK => break,
                 opcodes::PUSH => self.op_push(),
+                opcodes::PUSH2 => self.op_push2(),
                 opcodes::DEO => self.op_deo(machine),
                 _ => {}
             }
@@ -87,9 +88,24 @@ impl Cpu {
     }
 
     #[inline]
+    fn read_short(&mut self) -> u16 {
+        let hi = self.ram[self.pc as usize];
+        let lo = self.ram[self.pc.wrapping_add(1) as usize];
+        self.pc = self.pc.wrapping_add(2);
+
+        u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
     fn op_push(&mut self) {
         let value = self.read_byte();
         self.stack.push_byte(value);
+    }
+
+    #[inline]
+    fn op_push2(&mut self) {
+        let value = self.read_short();
+        self.stack.push_short(value);
     }
 
     #[inline]
@@ -153,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    pub fn run_wraps_pc_at_the_end_of_ram() {
+    fn run_wraps_pc_at_the_end_of_ram() {
         let mut rom = zeroed_memory();
         rom[rom.len() - 1] = 0x01;
         let mut cpu = Cpu::new(&rom);
@@ -165,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    pub fn push_opcode() {
+    fn push_opcode() {
         let rom = rom_from(&[PUSH, 0xab, BRK]);
         let mut cpu = Cpu::new(&rom);
 
@@ -176,7 +192,18 @@ mod tests {
     }
 
     #[test]
-    pub fn deo_opcode() {
+    fn push2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0xabcd);
+    }
+
+    #[test]
+    fn deo_opcode() {
         let rom = rom_from(&[PUSH, 0xab, PUSH, 0x02, DEO, BRK]);
         let mut cpu = Cpu::new(&rom);
 
