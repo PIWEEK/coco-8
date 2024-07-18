@@ -1,4 +1,5 @@
 pub const BRK: u8 = 0x00;
+pub const INC: u8 = 0x01;
 pub const DUP: u8 = 0x06;
 pub const DUP2: u8 = 0x26;
 pub const DEI: u8 = 0x16;
