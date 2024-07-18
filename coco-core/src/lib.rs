@@ -59,6 +59,7 @@ impl Cpu {
             let op = self.read_byte();
             match op {
                 opcodes::BRK => break,
+                opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
                 opcodes::PUSH => self.op_push(),
@@ -113,6 +114,15 @@ impl Cpu {
     fn op_push2(&mut self) {
         let value = self.read_short();
         self.stack.push_short(value);
+    }
+
+    #[inline]
+    fn op_dei(&mut self, machine: &mut impl Machine) {
+        let target = self.stack.pop_byte();
+        self.stack.push_byte(self.devices[target as usize]);
+
+        // callback for I/O
+        machine.dei(self, target);
     }
 
     #[inline]
@@ -221,6 +231,18 @@ mod tests {
         assert_eq!(pc, 0x104);
         assert_eq!(cpu.stack.len(), 2);
         assert_eq!(cpu.stack.short_at(0), 0xabcd);
+    }
+
+    #[test]
+    fn dei_opcode() {
+        let rom = rom_from(&[PUSH, 0x10, DEI, BRK]);
+        let mut cpu = Cpu::new(&rom);
+        cpu.devices[0x10] = 0xab;
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0xab);
     }
 
     #[test]

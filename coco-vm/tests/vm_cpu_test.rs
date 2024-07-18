@@ -126,7 +126,6 @@ fn test_deo_sprite() {
 
     let _ = vm.on_reset(&mut cpu);
     let buffer = vm.pixels();
-    // println!("{:?}", buffer);
 
     assert_eq!(buffer[0..8], [0x01; 8]);
 }
