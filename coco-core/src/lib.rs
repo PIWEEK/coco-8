@@ -5,9 +5,11 @@ use core::cmp;
 use core::fmt;
 
 mod stack;
+use opcodes::short_mode;
 use stack::Stack;
 
 pub mod opcodes;
+use opcodes::FLAG_SHORT;
 
 /// The trait to implement for COCO virtual machines.
 pub trait Machine {
@@ -18,6 +20,22 @@ pub trait Machine {
 /// The trait to implement a COCO device's ports
 pub trait Ports {
     const BASE: u8;
+}
+
+macro_rules! binary_op {
+    ($self:ident, $flags:ident, $f:expr) => {
+        if short_mode($flags) {
+            let b = $self.stack.pop_short();
+            let a = $self.stack.pop_short();
+            let f: fn(u16, u16) -> u16 = $f;
+            $self.stack.push_short(f(a, b))
+        } else {
+            let b = $self.stack.pop_byte();
+            let a = $self.stack.pop_byte();
+            let f: fn(u8, u8) -> u8 = $f;
+            $self.stack.push_byte(f(a, b))
+        }
+    };
 }
 
 /// COCO-8 CPU.
@@ -65,10 +83,14 @@ impl Cpu {
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
-                opcodes::ADD => self.op_add(),
-                opcodes::SUB => self.op_sub(),
-                opcodes::MUL => self.op_mul(),
-                opcodes::DIV => self.op_div(),
+                opcodes::ADD => self.op_add::<0x00>(),
+                opcodes::ADD2 => self.op_add::<FLAG_SHORT>(),
+                opcodes::SUB => self.op_sub::<0x00>(),
+                opcodes::SUB2 => self.op_sub::<FLAG_SHORT>(),
+                opcodes::MUL => self.op_mul::<0x00>(),
+                opcodes::MUL2 => self.op_mul::<FLAG_SHORT>(),
+                opcodes::DIV => self.op_div::<0x00>(),
+                opcodes::DIV2 => self.op_div::<FLAG_SHORT>(),
                 opcodes::PUSH => self.op_push(),
                 opcodes::PUSH2 => self.op_push2(),
                 _ => {}
@@ -179,35 +201,23 @@ impl Cpu {
     }
 
     #[inline]
-    fn op_add(&mut self) {
-        let b = self.stack.pop_byte();
-        let a = self.stack.pop_byte();
-        let value = a.wrapping_add(b);
-        self.stack.push_byte(value);
+    fn op_add<const FLAGS: u8>(&mut self) {
+        binary_op!(self, FLAGS, |a, b| a.wrapping_add(b))
     }
 
     #[inline]
-    fn op_sub(&mut self) {
-        let b = self.stack.pop_byte();
-        let a = self.stack.pop_byte();
-        let value = a.wrapping_sub(b);
-        self.stack.push_byte(value);
+    fn op_sub<const FLAGS: u8>(&mut self) {
+        binary_op!(self, FLAGS, |a, b| a.wrapping_sub(b))
     }
 
     #[inline]
-    fn op_mul(&mut self) {
-        let b = self.stack.pop_byte();
-        let a = self.stack.pop_byte();
-        let value = a.wrapping_mul(b);
-        self.stack.push_byte(value);
+    fn op_mul<const FLAGS: u8>(&mut self) {
+        binary_op!(self, FLAGS, |a, b| a.wrapping_mul(b))
     }
 
     #[inline]
-    fn op_div(&mut self) {
-        let b = self.stack.pop_byte();
-        let a = self.stack.pop_byte();
-        let value = a.wrapping_div(b);
-        self.stack.push_byte(value);
+    fn op_div<const FLAGS: u8>(&mut self) {
+        binary_op!(self, FLAGS, |a, b| a.wrapping_div(b))
     }
 }
 
@@ -385,6 +395,18 @@ mod tests {
     }
 
     #[test]
+    fn add2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH2, 0x11, 0x11, ADD2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0xbcde);
+    }
+
+    #[test]
     fn sub_opcode() {
         let rom = rom_from(&[PUSH, 0xab, PUSH, 0x02, SUB, BRK]);
         let mut cpu = Cpu::new(&rom);
@@ -394,6 +416,18 @@ mod tests {
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0xa9);
+    }
+
+    #[test]
+    fn sub2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH2, 0x11, 0x11, SUB2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0x9abc);
     }
 
     #[test]
