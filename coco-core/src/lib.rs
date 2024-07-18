@@ -76,6 +76,12 @@ impl Cpu {
         &mut self.devices[(D::BASE as usize)..(D::BASE as usize + 0x10)]
     }
 
+    /// Returns a chunk of memory
+    #[inline]
+    pub fn ram_peek_byte(&self, addr: u16) -> u8 {
+        self.ram[addr as usize]
+    }
+
     /// Returns the current value for the program counter (PC)
     pub fn pc(&self) -> u16 {
         self.pc

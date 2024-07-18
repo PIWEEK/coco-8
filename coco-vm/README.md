@@ -29,7 +29,7 @@ Sending a non-zero byte to the **`debug` port** will ouput CPU debug information
   <tr><th><code>0x12</code></th><td>x</td><th><code>0x1a</code></th><td>sprite</td></tr>
   <tr><th><code>0x13</code></th><td>y</td><th><code>0x1b</code></th><td>--</td></tr>
   <tr><th><code>0x14</code></th><td>pixel</td><th><code>0x1c</code></th><td>--</td></tr>
-  <tr><th><code>0x15</code></th><td>read</td><th><code>0x1d</code></th><td>--</td></tr>
+  <tr><th><code>0x15</code></th><td>--</td><th><code>0x1d</code></th><td>--</td></tr>
   <tr><th><code>0x16</code></th><td>--</td><th><code>0x1e</code></th><td>--</td></tr>
   <tr><th><code>0x17</code></th><td>--</td><th><code>0x1f</code></th><td>--</td></tr>
 </table>
@@ -82,6 +82,28 @@ PUSH 30 PUSH 13 DEO # fills the foreground with transparent color
 
 The **`sprite` port** is used to draw sprites (or tiles). A sprite a 8x8 pixel image, with 4 bits per pixel. Writing to this port will take the sprite addressed by the **`address` port** paint it at the coordinates set by the **`x` and `y` ports**.
 
+<table>
+  <tr>
+    <th><code>7</code></th>
+    <th><code>6</code></th>
+    <th><code>5</code></th>
+    <th><code>4</code></th>
+    <th><code>3</code></th>
+    <th><code>2</code></th>
+    <th><code>1</code></th>
+    <th><code>0</code></th>
+  </tr>
+  <tr>
+    <td>flip x</td>
+    <td>flip y</td>
+    <td>1bpp</td>
+    <td>layer</td>
+    <td colspan="4">color</td>
+  </tr>
+</table>
+
+> **TODO**: `flip x`, `flip y`, `1bpp` and `color` are currently unimplemented as per 2024-07-18.
+
 Sprite example:
 
 ```
@@ -91,6 +113,8 @@ Sprite example:
 7f7777f7
 77111177
 77728777
-77777777
+76777767
 76077067
 ```
+
+![Sprite screenshot](../docs/sprite_screenshot.png)
