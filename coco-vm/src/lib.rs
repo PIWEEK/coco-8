@@ -60,8 +60,7 @@ impl Vm {
     }
 
     pub fn on_video(&mut self, cpu: &mut Cpu) -> DeviceOutput {
-        // TODO: call video vector
-        cpu.run(0x200, self);
+        cpu.run(self.video.vector(), self);
         self.output()
     }
 

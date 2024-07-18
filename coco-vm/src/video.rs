@@ -11,7 +11,6 @@ impl Ports for VideoPorts {
 }
 
 impl VideoPorts {
-    #[allow(dead_code)]
     const VECTOR: u8 = 0x00;
     const X: u8 = 0x02;
     const Y: u8 = 0x03;
@@ -32,6 +31,7 @@ pub struct VideoDevice {
     pub layers: [VideoBuffer; 2],
     is_dirty: bool,
     buffer: VideoBuffer,
+    vector: u16,
 }
 
 impl VideoDevice {
@@ -40,7 +40,12 @@ impl VideoDevice {
             layers: [[0x00; VIDEO_BUFFER_LEN]; 2],
             is_dirty: true,
             buffer: [0x00; VIDEO_BUFFER_LEN],
+            vector: 0,
         }
+    }
+
+    pub fn vector(&self) -> u16 {
+        self.vector
     }
 
     pub fn pixels(&mut self) -> &VideoBuffer {
@@ -74,6 +79,15 @@ impl VideoDevice {
         let lo = ports[VideoPorts::ADDRESS.wrapping_add(1) as usize];
 
         u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
+    fn deo_vector(&mut self, cpu: &mut Cpu) {
+        let ports = cpu.device_page::<VideoPorts>();
+        let hi = ports[VideoPorts::VECTOR as usize];
+        let lo = ports[VideoPorts::VECTOR as usize + 1];
+
+        self.vector = u16::from_be_bytes([hi, lo]);
     }
 
     fn deo_pixel(&mut self, cpu: &mut Cpu) {
@@ -162,6 +176,7 @@ impl VideoDevice {
 impl Device for VideoDevice {
     fn deo(&mut self, cpu: &mut Cpu, target: u8) {
         match target {
+            VideoPorts::VECTOR => self.deo_vector(cpu),
             VideoPorts::X => {}
             VideoPorts::Y => {}
             VideoPorts::PIXEL => self.deo_pixel(cpu),
