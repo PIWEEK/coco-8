@@ -55,7 +55,7 @@ async function main() {
   setupRomSelector(romSelector, defaultRom);
   setupControls();
 
-  const rom = await fetchRom(`/roms/${defaultRom}`);
+  const rom = await fetchRom(`roms/${defaultRom}`);
   if (rom) {
     await handleFile(rom);
   }
