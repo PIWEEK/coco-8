@@ -1,0 +1,20 @@
+( sprite example )
+|10 @Screen &vector $2 &x $1 &y $1 &pixel $1 &pad $3 &address $2 &sprite $1 
+
+|0100 ( -> )
+  #5c .Screen/x DEO
+  #44 .Screen/y DEO
+  ;coco .Screen/address DEO2
+  #00 .Screen/sprite DEO
+BRK
+
+@coco
+0077 7700
+0777 7770
+6717 7176
+7f77 77f7
+7711 1177
+7772 8777
+7777 7777
+7607 7067
+

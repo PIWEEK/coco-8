@@ -14,21 +14,23 @@
   <main>
     <canvas id="coco-video" class="coco-video" width="192" height="144"></canvas>
       <section class="coco-controls">
-        <select name="rom" id="coco-rom-selector">
-          <option value="empty.rom">Empty</option>
-          <option value="deo_system_debug.rom">Debug</option>
-          <option value="put_pixel.rom">Pixel (single)</option>
-          <option value="pixel_fill.rom">Pixel (fill)</option>
-          <option value="sprite.rom">Sprite</option>
-          <option value="sprite_move.rom">Moving Sprite</option>
-        </select>
-
+          <label>Select ROM:
+          <select name="rom" id="coco-rom-selector">
+            <option value="put_pixel">Pixel (single)</option>
+            <option value="pixel_fill">Pixel (fill)</option>
+            <option value="sprite">Sprite</option>
+            <option value="sprite_move">Moving Sprite</option>
+          </select>
+        </label>
         <div>
-          <input type="checkbox" id="coco-show-bytecode">
-          <label for="coco-show-bytecode">Show bytecode</label>
+          <label><input type="checkbox" id="coco-show-source" disabled> Show source</label>
+          <label><input type="checkbox" id="coco-show-bytecode" disabled> Show bytecode</label>
         </div>
       </section>
-      <section id="coco-bytecode" class="bytecode" style="display: none;"></section>
+      <aside class="debug">
+        <section id="coco-bytecode" class="bytecode" style="display: none;"></section>
+        <pre id="coco-source" class="source" style="display: none;"></pre>
+      </aside>
   </main>
   <footer>
     <p>Crafted with 🖤 by <a href="https://www.ladybenko.net">ladybenko</a>.</p>

@@ -1,0 +1,15 @@
+( pixel deo example )
+|10 @Screen &vector $2 &x $1 &y $1 &pixel $1
+
+|100
+  ( fill bg )
+  #00 .Screen/x DEO
+  #00 .Screen/y DEO
+  #21 .Screen/pixel DEO
+
+  ( draw pixel at the center )
+  #60 .Screen/x DEO
+  #48 .Screen/y DEO
+  #08 .Screen/pixel DEO
+BRK
+
