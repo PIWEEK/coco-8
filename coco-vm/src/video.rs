@@ -18,24 +18,44 @@ impl VideoPorts {
     const PIXEL: u8 = 0x04;
 }
 
-pub const SCREEN_WIDTH: usize = 192;
-pub const SCREEN_HEIGHT: usize = 144;
-const VIDEO_BUFFER_LEN: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
+pub const SCREEN_WIDTH: u8 = 192;
+pub const SCREEN_HEIGHT: u8 = 144;
+pub const VIDEO_BUFFER_LEN: usize = SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize;
 
 pub type Pixel = u8;
 pub type VideoBuffer = [Pixel; VIDEO_BUFFER_LEN];
 
 #[derive(Debug)]
 pub struct VideoDevice {
-    pub background: [Pixel; VIDEO_BUFFER_LEN],
-    pub foreground: [Pixel; VIDEO_BUFFER_LEN],
+    pub layers: [VideoBuffer; 2],
+    is_dirty: bool,
+    buffer: VideoBuffer,
 }
 
 impl VideoDevice {
     pub fn new() -> Self {
         Self {
-            background: [0x00; VIDEO_BUFFER_LEN],
-            foreground: [0x00; VIDEO_BUFFER_LEN],
+            layers: [[0x00; VIDEO_BUFFER_LEN]; 2],
+            is_dirty: true,
+            buffer: [0x00; VIDEO_BUFFER_LEN],
+        }
+    }
+
+    pub fn pixels(&mut self) -> &VideoBuffer {
+        if std::mem::take(&mut self.is_dirty) {
+            self.refresh_buffer();
+        }
+
+        return &self.buffer;
+    }
+
+    fn refresh_buffer(&mut self) {
+        for i in 0..self.buffer.len() {
+            self.buffer[i] = if self.layers[0x01][i] != 0x00 {
+                self.layers[0x01][i]
+            } else {
+                self.layers[0x00][i]
+            }
         }
     }
 
@@ -47,49 +67,40 @@ impl VideoDevice {
     }
 
     fn deo_pixel(&mut self, cpu: &mut Cpu) {
+        self.is_dirty = true;
+
         let ports = cpu.device_page::<VideoPorts>();
         let pixel = ports[VideoPorts::PIXEL as usize];
 
         let (x, y) = self.xy(ports);
         let color = pixel & 0x0f;
-        let is_foreground = ((pixel & 0b0001_0000) >> 4) == 0x01;
+        let layer = (pixel & 0b0001_0000) >> 4;
         let is_fill = ((pixel & 0b0010_0000) >> 5) == 0x01;
 
         if is_fill {
-            self.fill(x, y, color, is_foreground);
+            self.fill(x, y, color, layer);
         } else {
-            self.put_pixel(x, y, color, is_foreground);
+            self.put_pixel(x, y, color, layer);
         }
     }
 
-    fn fill(&mut self, x: u8, y: u8, color: Pixel, is_foreground: bool) {
-        let chunk = vec![color; SCREEN_WIDTH - x as usize];
-        let layer = self.layer(is_foreground);
-
-        for row in (y as usize)..SCREEN_HEIGHT {
-            let i = x as usize + row as usize * SCREEN_WIDTH;
-            layer[i..(i + chunk.len())].copy_from_slice(&chunk);
-        }
-    }
-
-    #[inline]
-    fn layer(&mut self, is_foreground: bool) -> &mut [Pixel; VIDEO_BUFFER_LEN] {
-        if is_foreground {
-            &mut self.foreground
-        } else {
-            &mut self.background
+    fn fill(&mut self, x: u8, y: u8, color: Pixel, layer: u8) {
+        for col in x..SCREEN_WIDTH {
+            for row in y..SCREEN_HEIGHT {
+                self.put_pixel(col, row, color, layer);
+            }
         }
     }
 
     #[inline]
-    fn put_pixel(&mut self, x: u8, y: u8, color: u8, is_foreground: bool) {
-        let i = y as usize * SCREEN_WIDTH + x as usize;
+    fn put_pixel(&mut self, x: u8, y: u8, color: u8, layer: u8) {
+        let i = y as usize * SCREEN_WIDTH as usize + x as usize;
+        self.layer(layer)[i] = color;
+    }
 
-        if is_foreground {
-            self.foreground[i] = color;
-        } else {
-            self.background[i] = color;
-        }
+    #[inline]
+    fn layer(&mut self, i: u8) -> &mut VideoBuffer {
+        &mut self.layers[i as usize]
     }
 }
 

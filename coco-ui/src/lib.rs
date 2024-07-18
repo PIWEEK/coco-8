@@ -3,7 +3,7 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use coco_core::Cpu;
-use coco_vm::{Vm, SCREEN_HEIGHT, SCREEN_WIDTH};
+use coco_vm::{VideoBuffer, Vm, SCREEN_HEIGHT, SCREEN_WIDTH, VIDEO_BUFFER_LEN};
 
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
@@ -13,8 +13,8 @@ pub struct Output {
 
 pub type Result<T> = core::result::Result<T, JsValue>;
 
-pub type DisplayBuffer = [u8; SCREEN_WIDTH * SCREEN_HEIGHT * 4];
-pub type DeviceBuffer = [u8; SCREEN_WIDTH * SCREEN_HEIGHT];
+pub type DisplayBuffer = [u8; VIDEO_BUFFER_LEN * 4];
+pub type DeviceBuffer = VideoBuffer;
 pub type RGB = (u8, u8, u8);
 
 const THEME: [RGB; 0x10] = [
@@ -38,13 +38,6 @@ const THEME: [RGB; 0x10] = [
 
 #[wasm_bindgen(js_name=runRom)]
 pub fn run_rom(rom: &[u8]) -> Result<Output> {
-    web_sys::console::log_1(&JsValue::from(
-        rom.iter()
-            .map(|x| format!("{:02x}", x))
-            .collect::<Vec<String>>()
-            .join(" "),
-    ));
-
     let cpu = Rc::new(RefCell::new(Cpu::new(&rom)));
     let vm = Rc::new(RefCell::new(Vm::new()));
 
@@ -56,12 +49,12 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
     let g = f.clone();
 
     let ctx = canvas_context();
-    let mut canvas_buffer: DisplayBuffer = [0; SCREEN_WIDTH * SCREEN_HEIGHT * 4];
-    render(&vm.borrow(), &ctx, &mut canvas_buffer);
+    let mut canvas_buffer: DisplayBuffer = [0; VIDEO_BUFFER_LEN * 4];
+    render(&mut vm.borrow_mut(), &ctx, &mut canvas_buffer);
 
     *g.borrow_mut() = Some(Closure::new(move || {
         vm.borrow_mut().on_video(&mut cpu.borrow_mut());
-        render(&vm.borrow(), &ctx, &mut canvas_buffer);
+        render(&mut vm.borrow_mut(), &ctx, &mut canvas_buffer);
         request_animation_frame(f.borrow().as_ref().unwrap())
     }));
 
@@ -72,19 +65,19 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
     })
 }
 
-fn render(vm: &Vm, ctx: &web_sys::CanvasRenderingContext2d, buffer: &mut DisplayBuffer) {
-    let (bg, fg) = vm.pixels();
+fn render(vm: &mut Vm, ctx: &web_sys::CanvasRenderingContext2d, buffer: &mut DisplayBuffer) {
+    let pixels = vm.pixels();
 
     // update buffer and copy its pixel to the canvas
-    update_display_buffer(buffer, bg, fg);
+    update_display_buffer(buffer, pixels);
     let image_data = image_data(buffer.as_slice(), SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
     ctx.put_image_data(&image_data, 0_f64, 0_f64)
         .expect("Could not copy pixels to canvas");
 }
 
-fn update_display_buffer(buffer: &mut DisplayBuffer, bg: &DeviceBuffer, fg: &DeviceBuffer) {
-    for i in 0..(SCREEN_WIDTH * SCREEN_HEIGHT) {
-        let raw_color = if fg[i] == 0x00 { bg[i] } else { fg[i] };
+fn update_display_buffer(buffer: &mut DisplayBuffer, pixels: &DeviceBuffer) {
+    for i in 0..VIDEO_BUFFER_LEN {
+        let raw_color = pixels[i];
         let color = THEME[raw_color as usize];
 
         let j = i * 4;

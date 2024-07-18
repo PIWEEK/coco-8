@@ -1,6 +1,7 @@
 use coco_core::opcodes::*;
 use coco_core::Cpu;
 use coco_vm::SCREEN_HEIGHT;
+use coco_vm::VIDEO_BUFFER_LEN;
 use coco_vm::{Vm, SCREEN_WIDTH};
 
 #[test]
@@ -24,9 +25,9 @@ fn test_deo_video_pixel_put() {
     let mut vm = Vm::new();
 
     let _ = vm.on_reset(&mut cpu);
-    let (bg, _) = vm.pixels();
+    let buffer = vm.pixels();
 
-    assert_eq!(bg[0x01 * SCREEN_WIDTH + 0x01], 0x08);
+    assert_eq!(buffer[0x01 * SCREEN_WIDTH as usize + 0x01], 0x08);
 }
 
 #[test]
@@ -53,15 +54,19 @@ fn test_deo_video_pixel_fill() {
     let mut vm = Vm::new();
 
     let _ = vm.on_reset(&mut cpu);
-    let (bg, _) = vm.pixels();
+    let buffer = vm.pixels();
 
     assert_eq!(
-        bg[0x00..SCREEN_WIDTH * SCREEN_HEIGHT / 2],
-        [0x00; SCREEN_WIDTH * SCREEN_HEIGHT / 2]
+        buffer[0x00..VIDEO_BUFFER_LEN / 2],
+        [0x00; VIDEO_BUFFER_LEN / 2]
     );
-    let expected_slice = [[0x00; SCREEN_WIDTH / 2], [0x01; SCREEN_WIDTH / 2]].concat();
+    let expected_slice = [
+        [0x00; SCREEN_WIDTH as usize / 2],
+        [0x01; SCREEN_WIDTH as usize / 2],
+    ]
+    .concat();
     for y in (SCREEN_HEIGHT / 2)..SCREEN_HEIGHT {
-        let i = y * SCREEN_WIDTH;
-        assert_eq!(bg[i..(i + SCREEN_WIDTH)], expected_slice);
+        let i = y as usize * SCREEN_WIDTH as usize;
+        assert_eq!(buffer[i..(i + SCREEN_WIDTH as usize)], expected_slice);
     }
 }

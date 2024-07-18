@@ -3,9 +3,9 @@ mod video;
 
 use coco_core::{Cpu, Machine, Ports};
 use system::{SystemDevice, SystemPorts};
-use video::{VideoBuffer, VideoDevice, VideoPorts};
+use video::{VideoDevice, VideoPorts};
 
-pub use video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+pub use video::{VideoBuffer, SCREEN_HEIGHT, SCREEN_WIDTH, VIDEO_BUFFER_LEN};
 
 trait Device {
     #[allow(dead_code)]
@@ -65,8 +65,8 @@ impl Vm {
         self.output()
     }
 
-    pub fn pixels(&self) -> (&VideoBuffer, &VideoBuffer) {
-        (&self.video.background, &self.video.foreground)
+    pub fn pixels(&mut self) -> &VideoBuffer {
+        &self.video.pixels()
     }
 
     pub fn output(&mut self) -> DeviceOutput {
