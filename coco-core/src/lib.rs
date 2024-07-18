@@ -59,6 +59,7 @@ impl Cpu {
             let op = self.read_byte();
             match op {
                 opcodes::BRK => break,
+                opcodes::DUP2 => self.op_dup2(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
@@ -102,6 +103,13 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(2);
 
         u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
+    fn op_dup2(&mut self) {
+        let value = self.stack.pop_short();
+        self.stack.push_short(value);
+        self.stack.push_short(value);
     }
 
     #[inline]
@@ -212,11 +220,25 @@ mod tests {
     }
 
     #[test]
+    fn dup2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcb, DUP2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x105);
+        assert_eq!(cpu.stack.len(), 4);
+        assert_eq!(cpu.stack.short_at(0), 0xabcb);
+        assert_eq!(cpu.stack.short_at(2), 0xabcb);
+    }
+
+    #[test]
     fn push_opcode() {
         let rom = rom_from(&[PUSH, 0xab, BRK]);
         let mut cpu = Cpu::new(&rom);
 
         let pc = cpu.run(0x100, &mut AnyMachine {});
+
         assert_eq!(pc, 0x103);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0xab);
