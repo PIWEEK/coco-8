@@ -59,6 +59,7 @@ impl Cpu {
             let op = self.read_byte();
             match op {
                 opcodes::BRK => break,
+                opcodes::DUP => self.op_dup(),
                 opcodes::DUP2 => self.op_dup2(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
@@ -103,6 +104,13 @@ impl Cpu {
         self.pc = self.pc.wrapping_add(2);
 
         u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
+    fn op_dup(&mut self) {
+        let value = self.stack.pop_byte();
+        self.stack.push_byte(value);
+        self.stack.push_byte(value);
     }
 
     #[inline]
@@ -217,6 +225,19 @@ mod tests {
 
         assert_eq!(pc, 0x01);
         assert_eq!(pc, cpu.pc);
+    }
+
+    #[test]
+    fn dup_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, DUP, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.byte_at(0), 0xab);
+        assert_eq!(cpu.stack.byte_at(1), 0xab);
     }
 
     #[test]
