@@ -65,6 +65,7 @@ impl Cpu {
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
+                opcodes::SUB => self.op_sub(),
                 opcodes::PUSH => self.op_push(),
                 opcodes::PUSH2 => self.op_push2(),
                 _ => {}
@@ -172,6 +173,14 @@ impl Cpu {
 
         // callback for I/0
         machine.deo(self, target);
+    }
+
+    #[inline]
+    fn op_sub(&mut self) {
+        let b = self.stack.pop_byte();
+        let a = self.stack.pop_byte();
+        let value = a.wrapping_sub(b);
+        self.stack.push_byte(value);
     }
 }
 
@@ -330,5 +339,16 @@ mod tests {
         assert_eq!(cpu.devices[0x00], 0xab);
         assert_eq!(cpu.devices[0x01], 0xcd);
         // TODO: check AnyMachine.deo has been called with 0xab as target arg
+    }
+
+    #[test]
+    fn sub_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0x02, SUB, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0xa9);
     }
 }
