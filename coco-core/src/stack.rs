@@ -45,6 +45,7 @@ impl Stack {
         return self.data[i as usize];
     }
 
+    #[cfg(test)]
     pub fn short_at(&self, i: u8) -> u16 {
         let hi = self.data[i as usize];
         let lo = self.data[i.wrapping_add(1) as usize];
