@@ -67,6 +67,7 @@ impl Cpu {
                 opcodes::DEO2 => self.op_deo2(machine),
                 opcodes::SUB => self.op_sub(),
                 opcodes::MUL => self.op_mul(),
+                opcodes::DIV => self.op_div(),
                 opcodes::PUSH => self.op_push(),
                 opcodes::PUSH2 => self.op_push2(),
                 _ => {}
@@ -189,6 +190,14 @@ impl Cpu {
         let b = self.stack.pop_byte();
         let a = self.stack.pop_byte();
         let value = a.wrapping_mul(b);
+        self.stack.push_byte(value);
+    }
+
+    #[inline]
+    fn op_div(&mut self) {
+        let b = self.stack.pop_byte();
+        let a = self.stack.pop_byte();
+        let value = a.wrapping_div(b);
         self.stack.push_byte(value);
     }
 }
@@ -376,5 +385,17 @@ mod tests {
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0x06);
+    }
+
+    #[test]
+    fn div_opcode() {
+        let rom = rom_from(&[PUSH, 0x07, PUSH, 0x02, DIV, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x03);
     }
 }
