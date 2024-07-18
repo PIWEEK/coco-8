@@ -51,7 +51,7 @@ async function main() {
   const _ = await initWasm("./vendor/coco_ui_bg.wasm");
   const romSelector = document.querySelector("#coco-rom-selector");
 
-  const defaultRom = "pixel_fill.rom";
+  const defaultRom = "sprite.rom";
   setupRomSelector(romSelector, defaultRom);
   setupControls();
 

@@ -23,14 +23,33 @@ impl Stack {
         self.data[self.index as usize] = x;
     }
 
+    pub fn push_short(&mut self, x: u16) {
+        let [hi, lo] = x.to_be_bytes();
+        self.push_byte(hi);
+        self.push_byte(lo);
+    }
+
     pub fn pop_byte(&mut self) -> u8 {
         let res = self.data[self.index as usize];
         self.index = self.index.wrapping_sub(1);
         res
     }
 
+    pub fn pop_short(&mut self) -> u16 {
+        let lo = self.pop_byte();
+        let hi = self.pop_byte();
+        u16::from_be_bytes([hi, lo])
+    }
+
     pub fn byte_at(&self, i: u8) -> u8 {
         return self.data[i as usize];
+    }
+
+    pub fn short_at(&self, i: u8) -> u16 {
+        let hi = self.data[i as usize];
+        let lo = self.data[i.wrapping_add(1) as usize];
+
+        u16::from_be_bytes([hi, lo])
     }
 }
 
