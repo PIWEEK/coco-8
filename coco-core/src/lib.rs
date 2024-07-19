@@ -82,8 +82,8 @@ impl Cpu {
                 opcodes::DUP2 => self.op_dup2(),
                 opcodes::JMP => self.op_jmp(),
                 opcodes::JMP2 => self.op_jmp2(),
-                opcodes::JNZ => self.op_jnz(),
-                opcodes::JNZ2 => self.op_jnz2(),
+                opcodes::JNZ => self.op_jnz::<0x00>(),
+                opcodes::JNZ2 => self.op_jnz::<FLAG_SHORT>(),
                 opcodes::LDZ => self.op_ldz::<0x00>(),
                 opcodes::LDZ2 => self.op_ldz::<FLAG_SHORT>(),
                 opcodes::DEI => self.op_dei(machine),
@@ -179,17 +179,14 @@ impl Cpu {
     }
 
     #[inline]
-    fn op_jnz(&mut self) {
-        let offset = self.stack.pop_byte();
-        let condition = self.stack.pop_byte();
-        if condition != 0x00 {
-            self.pc = self.pc.wrapping_add(offset as u16);
-        }
-    }
+    fn op_jnz<const FLAGS: u8>(&mut self) {
+        let addr = if short_mode(FLAGS) {
+            self.stack.pop_short()
+        } else {
+            let offset = self.stack.pop_byte();
+            self.pc.wrapping_add(offset as u16)
+        };
 
-    #[inline]
-    fn op_jnz2(&mut self) {
-        let addr = self.stack.pop_short();
         let condition = self.stack.pop_byte();
         if condition != 0x00 {
             self.pc = addr;
