@@ -53,7 +53,10 @@ pub fn run_rom(rom: &[u8]) -> Result<Output> {
     render(&mut vm.borrow_mut(), &ctx, &mut canvas_buffer);
 
     *g.borrow_mut() = Some(Closure::new(move || {
-        vm.borrow_mut().on_video(&mut cpu.borrow_mut());
+        let on_video_output = vm.borrow_mut().on_video(&mut cpu.borrow_mut());
+        if on_video_output.sys_stdout.len() > 0 {
+            web_sys::console::log_1(&JsValue::from(on_video_output.sys_stdout));
+        }
         render(&mut vm.borrow_mut(), &ctx, &mut canvas_buffer);
         request_animation_frame(f.borrow().as_ref().unwrap())
     }));
