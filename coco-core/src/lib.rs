@@ -80,6 +80,8 @@ impl Cpu {
                 opcodes::INC => self.op_inc(),
                 opcodes::DUP => self.op_dup(),
                 opcodes::DUP2 => self.op_dup2(),
+                opcodes::EQU => self.op_equ::<0x00>(),
+                opcodes::EQU2 => self.op_equ::<FLAG_SHORT>(),
                 opcodes::JMP => self.op_jmp(),
                 opcodes::JMP2 => self.op_jmp2(),
                 opcodes::JNZ => self.op_jnz::<0x00>(),
@@ -179,6 +181,21 @@ impl Cpu {
         let value = self.stack.pop_short();
         self.stack.push_short(value);
         self.stack.push_short(value);
+    }
+
+    #[inline]
+    fn op_equ<const FLAGS: u8>(&mut self) {
+        let res = if short_mode(FLAGS) {
+            let b = self.stack.pop_short();
+            let a = self.stack.pop_short();
+            a == b
+        } else {
+            let b = self.stack.pop_byte();
+            let a = self.stack.pop_byte();
+            a == b
+        };
+
+        self.stack.push_byte(if res { 0x01 } else { 0x00 });
     }
 
     #[inline]
@@ -652,5 +669,29 @@ mod tests {
         assert_eq!(pc, 0x107);
         assert_eq!(cpu.stack.len(), 0);
         assert_eq!(cpu.ram_peek_short(0x01), 0xabcd);
+    }
+
+    #[test]
+    fn equ_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0xab, EQU, PUSH, 0x00, EQU, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x109);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x00);
+    }
+
+    #[test]
+    fn equ2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH2, 0xab, 0xcd, EQU2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x01);
     }
 }
