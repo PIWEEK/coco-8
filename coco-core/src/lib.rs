@@ -84,6 +84,8 @@ impl Cpu {
                 opcodes::JMP2 => self.op_jmp2(),
                 opcodes::JNZ => self.op_jnz(),
                 opcodes::JNZ2 => self.op_jnz2(),
+                opcodes::LDZ => self.op_ldz::<0x00>(),
+                opcodes::LDZ2 => self.op_ldz::<FLAG_SHORT>(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
@@ -110,10 +112,17 @@ impl Cpu {
         &mut self.devices[(D::BASE as usize)..(D::BASE as usize + 0x10)]
     }
 
-    /// Returns a chunk of memory
-    #[inline]
+    /// Returns a byte of memory
     pub fn ram_peek_byte(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
+    }
+
+    /// Returns a short from memory
+    #[inline]
+    pub fn ram_peek_short(&self, addr: u16) -> u16 {
+        let hi = self.ram[addr as usize];
+        let lo = self.ram[addr.wrapping_add(1) as usize];
+        u16::from_be_bytes([hi, lo])
     }
 
     /// Returns the current value for the program counter (PC)
@@ -184,6 +193,18 @@ impl Cpu {
         let condition = self.stack.pop_byte();
         if condition != 0x00 {
             self.pc = addr;
+        }
+    }
+
+    #[inline]
+    fn op_ldz<const FLAGS: u8>(&mut self) {
+        let addr = self.stack.pop_byte();
+        if short_mode(FLAGS) {
+            let value = self.ram_peek_short(addr as u16);
+            self.stack.push_short(value);
+        } else {
+            let value = self.ram_peek_byte(addr as u16);
+            self.stack.push_byte(value);
         }
     }
 
@@ -556,5 +577,32 @@ mod tests {
 
         assert_eq!(pc, 0x10e);
         assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn ldz_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, LDZ, BRK]);
+        let mut cpu = Cpu::new(&rom);
+        cpu.ram[0x01] = 0xab;
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0xab);
+    }
+
+    #[test]
+    fn ldz2_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, LDZ2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+        cpu.ram[0x01] = 0xab;
+        cpu.ram[0x02] = 0xcd;
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0xabcd);
     }
 }
