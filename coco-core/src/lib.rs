@@ -80,6 +80,16 @@ impl Cpu {
                 opcodes::INC => self.op_inc(),
                 opcodes::DUP => self.op_dup(),
                 opcodes::DUP2 => self.op_dup2(),
+                opcodes::EQU => self.op_equ::<0x00>(),
+                opcodes::EQU2 => self.op_equ::<FLAG_SHORT>(),
+                opcodes::JMP => self.op_jmp(),
+                opcodes::JMP2 => self.op_jmp2(),
+                opcodes::JNZ => self.op_jnz::<0x00>(),
+                opcodes::JNZ2 => self.op_jnz::<FLAG_SHORT>(),
+                opcodes::LDZ => self.op_ldz::<0x00>(),
+                opcodes::LDZ2 => self.op_ldz::<FLAG_SHORT>(),
+                opcodes::STZ => self.op_stz::<0x00>(),
+                opcodes::STZ2 => self.op_stz::<FLAG_SHORT>(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
@@ -106,10 +116,30 @@ impl Cpu {
         &mut self.devices[(D::BASE as usize)..(D::BASE as usize + 0x10)]
     }
 
-    /// Returns a chunk of memory
+    /// Returns a byte of memory
     #[inline]
     pub fn ram_peek_byte(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
+    }
+
+    /// Returns a short from memory
+    #[inline]
+    pub fn ram_peek_short(&self, addr: u16) -> u16 {
+        let hi = self.ram[addr as usize];
+        let lo = self.ram[addr.wrapping_add(1) as usize];
+        u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
+    pub fn ram_poke_byte(&mut self, addr: u16, value: u8) {
+        self.ram[addr as usize] = value;
+    }
+
+    #[inline]
+    pub fn ram_poke_short(&mut self, addr: u16, value: u16) {
+        let [hi, lo] = value.to_be_bytes();
+        self.ram[addr as usize] = hi;
+        self.ram[addr.wrapping_add(1) as usize] = lo;
     }
 
     /// Returns the current value for the program counter (PC)
@@ -151,6 +181,72 @@ impl Cpu {
         let value = self.stack.pop_short();
         self.stack.push_short(value);
         self.stack.push_short(value);
+    }
+
+    #[inline]
+    fn op_equ<const FLAGS: u8>(&mut self) {
+        let res = if short_mode(FLAGS) {
+            let b = self.stack.pop_short();
+            let a = self.stack.pop_short();
+            a == b
+        } else {
+            let b = self.stack.pop_byte();
+            let a = self.stack.pop_byte();
+            a == b
+        };
+
+        self.stack.push_byte(if res { 0x01 } else { 0x00 });
+    }
+
+    #[inline]
+    fn op_jmp(&mut self) {
+        let offset = self.stack.pop_byte();
+        self.pc = self.pc.wrapping_add(offset as u16);
+    }
+
+    #[inline]
+    fn op_jmp2(&mut self) {
+        let addr = self.stack.pop_short();
+        self.pc = addr;
+    }
+
+    #[inline]
+    fn op_jnz<const FLAGS: u8>(&mut self) {
+        let addr = if short_mode(FLAGS) {
+            self.stack.pop_short()
+        } else {
+            let offset = self.stack.pop_byte();
+            self.pc.wrapping_add(offset as u16)
+        };
+
+        let condition = self.stack.pop_byte();
+        if condition != 0x00 {
+            self.pc = addr;
+        }
+    }
+
+    #[inline]
+    fn op_ldz<const FLAGS: u8>(&mut self) {
+        let addr = self.stack.pop_byte();
+        if short_mode(FLAGS) {
+            let value = self.ram_peek_short(addr as u16);
+            self.stack.push_short(value);
+        } else {
+            let value = self.ram_peek_byte(addr as u16);
+            self.stack.push_byte(value);
+        }
+    }
+
+    #[inline]
+    fn op_stz<const FLAGS: u8>(&mut self) {
+        let addr = self.stack.pop_byte();
+        if short_mode(FLAGS) {
+            let value = self.stack.pop_short();
+            self.ram_poke_short(addr as u16, value);
+        } else {
+            let value = self.stack.pop_byte();
+            self.ram_poke_byte(addr as u16, value);
+        }
     }
 
     #[inline]
@@ -443,6 +539,18 @@ mod tests {
     }
 
     #[test]
+    fn mul2_opcode() {
+        let rom = rom_from(&[PUSH2, 0x11, 0x11, PUSH2, 0x00, 0x02, MUL2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0x2222);
+    }
+
+    #[test]
     fn div_opcode() {
         let rom = rom_from(&[PUSH, 0x07, PUSH, 0x02, DIV, BRK]);
         let mut cpu = Cpu::new(&rom);
@@ -452,5 +560,138 @@ mod tests {
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0x03);
+    }
+
+    #[test]
+    fn div2_opcode() {
+        let rom = rom_from(&[PUSH2, 0x66, 0x66, PUSH2, 0x22, 0x22, DIV2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0x03);
+    }
+
+    #[test]
+    fn jmp_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, JMP, BRK, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x105);
+        assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn jmp2_opcode() {
+        let rom = rom_from(&[BRK, PUSH2, 0x01, 0x00, JMP2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x101, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x101);
+        assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn jnz_opcode() {
+        let rom = rom_from(&[PUSH2, 0x01, 0x01, JNZ, BRK, PUSH2, 0x00, 0x01, JNZ, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x10a);
+        assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn jnz2_opcode() {
+        let rom = rom_from(&[
+            PUSH, 0x01, PUSH2, 0x01, 0x07, JNZ2, BRK, PUSH, 0x00, PUSH2, 0x01, 0x00, JNZ2, BRK,
+        ]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x10e);
+        assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn ldz_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, LDZ, BRK]);
+        let mut cpu = Cpu::new(&rom);
+        cpu.ram[0x01] = 0xab;
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0xab);
+    }
+
+    #[test]
+    fn ldz2_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, LDZ2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+        cpu.ram[0x01] = 0xab;
+        cpu.ram[0x02] = 0xcd;
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x104);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0xabcd);
+    }
+
+    #[test]
+    fn stz_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0x01, STZ, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.ram_peek_byte(0x01), 0xab);
+    }
+
+    #[test]
+    fn stz2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH, 0x01, STZ2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x107);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.ram_peek_short(0x01), 0xabcd);
+    }
+
+    #[test]
+    fn equ_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0xab, EQU, PUSH, 0x00, EQU, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x109);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x00);
+    }
+
+    #[test]
+    fn equ2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH2, 0xab, 0xcd, EQU2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 1);
+        assert_eq!(cpu.stack.byte_at(0), 0x01);
     }
 }
