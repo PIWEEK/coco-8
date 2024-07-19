@@ -86,6 +86,8 @@ impl Cpu {
                 opcodes::JNZ2 => self.op_jnz::<FLAG_SHORT>(),
                 opcodes::LDZ => self.op_ldz::<0x00>(),
                 opcodes::LDZ2 => self.op_ldz::<FLAG_SHORT>(),
+                opcodes::STZ => self.op_stz::<0x00>(),
+                opcodes::STZ2 => self.op_stz::<FLAG_SHORT>(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
@@ -113,6 +115,7 @@ impl Cpu {
     }
 
     /// Returns a byte of memory
+    #[inline]
     pub fn ram_peek_byte(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
     }
@@ -123,6 +126,18 @@ impl Cpu {
         let hi = self.ram[addr as usize];
         let lo = self.ram[addr.wrapping_add(1) as usize];
         u16::from_be_bytes([hi, lo])
+    }
+
+    #[inline]
+    pub fn ram_poke_byte(&mut self, addr: u16, value: u8) {
+        self.ram[addr as usize] = value;
+    }
+
+    #[inline]
+    pub fn ram_poke_short(&mut self, addr: u16, value: u16) {
+        let [hi, lo] = value.to_be_bytes();
+        self.ram[addr as usize] = hi;
+        self.ram[addr.wrapping_add(1) as usize] = lo;
     }
 
     /// Returns the current value for the program counter (PC)
@@ -202,6 +217,18 @@ impl Cpu {
         } else {
             let value = self.ram_peek_byte(addr as u16);
             self.stack.push_byte(value);
+        }
+    }
+
+    #[inline]
+    fn op_stz<const FLAGS: u8>(&mut self) {
+        let addr = self.stack.pop_byte();
+        if short_mode(FLAGS) {
+            let value = self.stack.pop_short();
+            self.ram_poke_short(addr as u16, value);
+        } else {
+            let value = self.stack.pop_byte();
+            self.ram_poke_byte(addr as u16, value);
         }
     }
 
@@ -601,5 +628,29 @@ mod tests {
         assert_eq!(pc, 0x104);
         assert_eq!(cpu.stack.len(), 2);
         assert_eq!(cpu.stack.short_at(0), 0xabcd);
+    }
+
+    #[test]
+    fn stz_opcode() {
+        let rom = rom_from(&[PUSH, 0xab, PUSH, 0x01, STZ, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x106);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.ram_peek_byte(0x01), 0xab);
+    }
+
+    #[test]
+    fn stz2_opcode() {
+        let rom = rom_from(&[PUSH2, 0xab, 0xcd, PUSH, 0x01, STZ2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x107);
+        assert_eq!(cpu.stack.len(), 0);
+        assert_eq!(cpu.ram_peek_short(0x01), 0xabcd);
     }
 }
