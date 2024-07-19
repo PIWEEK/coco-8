@@ -443,6 +443,18 @@ mod tests {
     }
 
     #[test]
+    fn mul2_opcode() {
+        let rom = rom_from(&[PUSH2, 0x11, 0x11, PUSH2, 0x00, 0x02, MUL2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0x2222);
+    }
+
+    #[test]
     fn div_opcode() {
         let rom = rom_from(&[PUSH, 0x07, PUSH, 0x02, DIV, BRK]);
         let mut cpu = Cpu::new(&rom);
@@ -452,5 +464,17 @@ mod tests {
         assert_eq!(pc, 0x106);
         assert_eq!(cpu.stack.len(), 1);
         assert_eq!(cpu.stack.byte_at(0), 0x03);
+    }
+
+    #[test]
+    fn div2_opcode() {
+        let rom = rom_from(&[PUSH2, 0x66, 0x66, PUSH2, 0x22, 0x22, DIV2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x108);
+        assert_eq!(cpu.stack.len(), 2);
+        assert_eq!(cpu.stack.short_at(0), 0x03);
     }
 }
