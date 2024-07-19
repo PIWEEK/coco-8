@@ -80,6 +80,8 @@ impl Cpu {
                 opcodes::INC => self.op_inc(),
                 opcodes::DUP => self.op_dup(),
                 opcodes::DUP2 => self.op_dup2(),
+                opcodes::JMP => self.op_jmp(),
+                opcodes::JMP2 => self.op_jmp2(),
                 opcodes::DEI => self.op_dei(machine),
                 opcodes::DEO => self.op_deo(machine),
                 opcodes::DEO2 => self.op_deo2(machine),
@@ -151,6 +153,18 @@ impl Cpu {
         let value = self.stack.pop_short();
         self.stack.push_short(value);
         self.stack.push_short(value);
+    }
+
+    #[inline]
+    fn op_jmp(&mut self) {
+        let offset = self.stack.pop_byte();
+        self.pc = self.pc.wrapping_add(offset as u16);
+    }
+
+    #[inline]
+    fn op_jmp2(&mut self) {
+        let addr = self.stack.pop_short();
+        self.pc = addr;
     }
 
     #[inline]
@@ -476,5 +490,27 @@ mod tests {
         assert_eq!(pc, 0x108);
         assert_eq!(cpu.stack.len(), 2);
         assert_eq!(cpu.stack.short_at(0), 0x03);
+    }
+
+    #[test]
+    fn jmp_opcode() {
+        let rom = rom_from(&[PUSH, 0x01, JMP, BRK, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x100, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x105);
+        assert_eq!(cpu.stack.len(), 0);
+    }
+
+    #[test]
+    fn jmp2_opcode() {
+        let rom = rom_from(&[BRK, PUSH2, 0x01, 0x00, JMP2, BRK]);
+        let mut cpu = Cpu::new(&rom);
+
+        let pc = cpu.run(0x101, &mut AnyMachine {});
+
+        assert_eq!(pc, 0x101);
+        assert_eq!(cpu.stack.len(), 0);
     }
 }
